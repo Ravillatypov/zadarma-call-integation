@@ -1,0 +1,18 @@
+[Unit]
+Description=zadarma call integration service
+After=network.target
+
+[Service]
+User=callservice
+Group=callservice
+WorkingDirectory=/home/callservice/zadarma-call-integration/backend
+PIDFile=/run/callservice/pid
+RuntimeDirectory=callservice
+ExecStart=/home/callservice/.env/bin/gunicorn --pid /run/callservice/pid -w 2 --bind unix:/run/callservice/wsgi.sock --worker-class sanic.worker.GunicornWorker app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+PrivateTmp=true
+
+
+[Install]
+WantedBy=multi-user.target
