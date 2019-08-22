@@ -2,7 +2,7 @@ from sanic import Blueprint
 from sanic.log import logger
 from sanic.response import HTTPResponse
 
-from utils import run_call, record_download, available_sip_numbers, normalize_dict, normalize_number
+from utils import run_call, normalize_dict, event_process
 
 bp = Blueprint('api', url_prefix='/api')
 
@@ -19,9 +19,7 @@ async def notify(request):
         current_app = request.app
         event = normalize_dict(request.form)
         if event['event'] == 'NOTIFY_OUT_END':
-            available_sip_numbers.release_number(event['internal'])
-            if event['is_recorded'] and event['call_id_with_rec']:
-                current_app.add_task(record_download(event['call_id_with_rec']))
+            current_app.add_task(event_process(event))
     return HTTPResponse('ok')
 
 
@@ -30,7 +28,5 @@ async def call(request):
     data = normalize_dict(request.form)
     logger.info(data)
     current_app = request.app
-    a_number = normalize_number(data['first_number'])
-    b_number = normalize_number(data['second_number'])
-    current_app.add_task(run_call(a_number, b_number))
+    current_app.add_task(run_call(data))
     return HTTPResponse('ok')
