@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 import aiofiles
 import aiohttp
-import requests_async as requests
+import requests
 
 
 class ZadarmaAPI(object):
@@ -27,7 +27,7 @@ class ZadarmaAPI(object):
         if is_sandbox:
             self.__url_api = 'https://api-sandbox.zadarma.com'
 
-    async def call(self, method, params={ }, request_type='GET', format='json', is_auth=True):
+    def call(self, method, params={ }, request_type='GET', format='json', is_auth=True):
         """
         Function for send API request
         :param method: API method, including version number
@@ -51,11 +51,11 @@ class ZadarmaAPI(object):
             sorted_dict_params = OrderedDict(sorted(params.items()))
             params_string = urlencode(sorted_dict_params)
             request_url = self.__url_api + method + '?' + params_string
-            result = await requests.get(request_url, headers={ 'Authorization': auth_str })
+            result = requests.get(request_url, headers={ 'Authorization': auth_str })
         elif request_type == 'POST':
-            result = await requests.post(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
+            result = requests.post(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
         elif request_type == 'PUT':
-            result = await requests.put(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
+            result = requests.put(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
         print("result: " + str(result.text))
         return json.loads(result.text)
 
@@ -74,21 +74,21 @@ class ZadarmaAPI(object):
         auth = self.key + ':' + base64.b64encode(bts).decode()
         return auth
 
-    async def callback(self, a_number: str, b_number: str, sip: str) -> str:
-        return await self.call('/v1/request/callback/', { 'from': a_number, 'to': b_number, 'sip': sip })
+    def callback(self, a_number: str, b_number: str) -> str:
+        return self.call('/v1/request/callback/', { 'from': a_number, 'to': b_number })
 
-    async def set_redirect(self, sip: str, to_number: str) -> str:
-        return await self.call('/v1/pbx/redirection/', {
+    def set_redirect(self, sip: str, to_number: str) -> str:
+        return self.call('/v1/pbx/redirection/', {
             'pbx_number': sip,
             'status': 'on',
             'type': 'phone',
             'destination': to_number,
             'condition': 'always',
-            'set_caller_id': 'off'
+            'set_caller_id': 'on'
         }, 'POST')
 
     async def get_record(self, call_id: str, dir_path: str) -> str:
-        result = await self.call('/v1/pbx/record/request/', { 'call_id': call_id })
+        result = self.call('/v1/pbx/record/request/', { 'call_id': call_id })
         link = result.get('link')
         if not link:
             return ''

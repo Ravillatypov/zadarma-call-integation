@@ -1,12 +1,12 @@
 from sanic import Sanic
 from sanic.response import json
 
-from api import api_bp
+from api import bp
 from settings import Config
 
 app = Sanic()
 app.config.from_object(Config)
-app.blueprint(api_bp)
+app.blueprint(bp)
 
 
 @app.route('/')
