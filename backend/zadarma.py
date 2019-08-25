@@ -7,7 +7,6 @@ from hashlib import sha1, md5
 from urllib.parse import urlencode
 
 import aiofiles
-import aiohttp
 import requests
 
 
@@ -92,14 +91,8 @@ class ZadarmaAPI(object):
         link = result.get('link')
         if not link:
             return ''
-        async with aiohttp.ClientSession() as session:
-            async with session.get(link) as response:
-                filename = os.path.join(dir_path, os.path.basename(link))
-                async with aiofiles.open(filename, 'wb') as fd:
-                    while True:
-                        chunk = await response.content.read(1024)
-                        if not chunk:
-                            break
-                        await fd.write(chunk)
-                await response.release()
-                return filename
+        filename = os.path.join(dir_path, os.path.basename(link))
+        response = requests.get(link)
+        async with aiofiles.open(filename, 'wb') as fd:
+            await fd.write(response.content)
+        return filename

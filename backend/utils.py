@@ -91,9 +91,10 @@ async def event_process(event: dict):
         sip_number, dst_number = dst_number, sip_number
     available_sip_numbers.release_number(sip_number)
     audio_file, a_number, internal_id = '', '', 0
-    if event['is_recorded'] and event['call_id_with_rec']:
+    if event.get('call_id_with_rec'):
         audio_file = await record_download(event['call_id_with_rec'])
-        audio_file = os.path.relpath(audio_file, Config.STATIC_PATH)
+        if audio_file:
+            audio_file = os.path.relpath(audio_file, Config.STATIC_PATH)
     call_start = datetime.fromisoformat(event['call_start'])
     duration = int(event['duration'])
     call_end = call_start + timedelta(seconds=duration)
@@ -118,7 +119,7 @@ async def event_process(event: dict):
         talking_time=duration,
         audio_file=audio_file,
         internal_number=sip_number,
-        unique_id=event['call_id_with_rec'],
+        unique_id=event.get('call_id_with_rec') or event.get('pbx_call_id'),
         service_data='{}'
     )
 
