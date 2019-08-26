@@ -6,7 +6,7 @@ class CallRecords(Model):
     id = fields.BigIntField(pk=True)
     master_id = fields.IntField(default=1)
     slave_id = fields.IntField()
-    internal_id = fields.BigIntField()
+    internal_id = fields.BigIntField(unique=True)
     status = fields.IntField()
     direction = fields.IntField()
     source_number = fields.CharField(max_length=50)

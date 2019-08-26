@@ -85,16 +85,17 @@ async def record_download(call_id: str):
 
 
 async def event_process(event: dict):
+    if event.get('call_id_with_rec') is None:
+        return
     sip_number = event['internal']
     dst_number = event['destination']
     if len(sip_number) > len(dst_number):
         sip_number, dst_number = dst_number, sip_number
     available_sip_numbers.release_number(sip_number)
     audio_file, a_number, internal_id = '', '', 0
-    if event.get('call_id_with_rec'):
-        audio_file = await record_download(event['call_id_with_rec'])
-        if audio_file:
-            audio_file = os.path.relpath(audio_file, Config.STATIC_PATH)
+    audio_file = await record_download(event['call_id_with_rec'])
+    if audio_file:
+        audio_file = os.path.relpath(audio_file, Config.STATIC_PATH)
     call_start = datetime.fromisoformat(event['call_start'])
     duration = int(event['duration'])
     call_end = call_start + timedelta(seconds=duration)
@@ -108,7 +109,7 @@ async def event_process(event: dict):
     call_record = CallRecords(
         master_id=1,
         slave_id=internal_id,
-        internal_id=internal_id,
+        internal_id=int(event['call_id_with_rec'].replace('.', '')),
         status=1 if event['disposition'] == 'answered' else 0,
         direction=2,
         source_number=a_number,
