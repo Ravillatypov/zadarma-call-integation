@@ -87,10 +87,11 @@ class ZadarmaAPI(object):
         auth = self.key + ':' + base64.b64encode(bts).decode()
         return auth
 
-    async def callback(self, a_number: str, b_number: str) -> str:
+    async def callback(self, a_number: str, b_number: str) -> dict:
         return await self.call('/v1/request/callback/', {'from': a_number, 'to': b_number})
 
     async def set_redirect(self, sip: str, to_number: str) -> dict:
+        logger.info({'pbx_number': sip, 'destination': to_number})
         return await self.call('/v1/pbx/redirection/', {
             'pbx_number': sip,
             'status': 'on',

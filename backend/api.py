@@ -15,9 +15,8 @@ async def notify(request):
         if zd_echo:
             return HTTPResponse(zd_echo)
     else:
-        logger.info(request.form)
         current_app = request.app
-        event = normalize_dict(request.form)
+        event = normalize_dict(request.form or request.json)
         logger.info(event)
         if event.get('event', '') == 'NOTIFY_OUT_END':
             current_app.add_task(event_process(event))
@@ -26,7 +25,7 @@ async def notify(request):
 
 @bp.route('/call', methods=['POST'])
 async def call(request):
-    data = normalize_dict(request.form)
+    data = normalize_dict(request.form or request.json)
     logger.info(data)
     current_app = request.app
     current_app.add_task(run_call(data))
