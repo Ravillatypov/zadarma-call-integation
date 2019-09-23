@@ -8,6 +8,7 @@ from zadarma import ZadarmaAPI
 from functools import lru_cache
 from dataclasses import dataclass
 from models import CallRecords
+from sanic.log import logger
 
 
 class SIPNumbers:
@@ -70,8 +71,8 @@ async def run_call(data: dict):
     internal_id = int(data['slave_id'])
     sip_number = await available_sip_numbers.get_sip_number()
     await available_sip_numbers.get_lock(sip_number)
-    zd_client.set_redirect(sip_number, a_number)
-    zd_client.callback(sip_number, b_number)
+    await zd_client.set_redirect(sip_number, a_number)
+    await zd_client.callback(sip_number, b_number)
     available_sip_numbers.release_lock(sip_number)
     calls.append(CallInfo(a_number, b_number,  sip_number, internal_id))
     return
@@ -81,6 +82,7 @@ async def record_download(call_id: str):
     await sleep(60)
     today = date.today().isoformat()
     save_path = get_download_path(today)
+    logger.info(save_path)
     return await zd_client.get_record(call_id, save_path)
 
 

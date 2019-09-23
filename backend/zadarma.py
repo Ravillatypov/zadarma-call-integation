@@ -6,8 +6,9 @@ from collections import OrderedDict
 from hashlib import sha1, md5
 from urllib.parse import urlencode
 
+from sanic.log import logger
 import aiofiles
-import requests
+import aiohttp
 
 
 class ZadarmaAPI(object):
@@ -26,7 +27,12 @@ class ZadarmaAPI(object):
         if is_sandbox:
             self.__url_api = 'https://api-sandbox.zadarma.com'
 
-    def call(self, method, params={ }, request_type='GET', format='json', is_auth=True):
+    async def call(self,
+                   method: str,
+                   params: dict = {},
+                   request_type: str = 'GET',
+                   format: str = 'json',
+                   is_auth: bool = True) -> dict:
         """
         Function for send API request
         :param method: API method, including version number
@@ -45,20 +51,28 @@ class ZadarmaAPI(object):
         if is_auth:
             auth_str = self.__get_auth_string_for_header(method, params)
 
-        result = False
+        request_url = self.__url_api + method
+        data = json.dumps(params)
+        result = {}
         if request_type == 'GET':
             sorted_dict_params = OrderedDict(sorted(params.items()))
             params_string = urlencode(sorted_dict_params)
-            request_url = self.__url_api + method + '?' + params_string
-            result = requests.get(request_url, headers={ 'Authorization': auth_str })
+            request_url += '?' + params_string
+            async with aiohttp.ClientSession() as session:
+                async with session.get(request_url, headers={'Authorization': auth_str}) as response:
+                    result = await response.json()
         elif request_type == 'POST':
-            result = requests.post(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(request_url, headers={'Authorization': auth_str}, data=data) as response:
+                    result = await response.json()
         elif request_type == 'PUT':
-            result = requests.put(self.__url_api + method, headers={ 'Authorization': auth_str }, data=params)
-        print("result: " + str(result.text))
-        return json.loads(result.text)
+            async with aiohttp.ClientSession() as session:
+                async with session.post(request_url, headers={'Authorization': auth_str}, data=data) as response:
+                    result = await response.json()
+        logger.info({'result': result, 'method': method, 'type': request_type})
+        return result
 
-    def __get_auth_string_for_header(self, method, params):
+    def __get_auth_string_for_header(self, method: str, params: dict) -> str:
         """
         :param method: API method, including version number
         :param params: Query params dict
@@ -73,11 +87,12 @@ class ZadarmaAPI(object):
         auth = self.key + ':' + base64.b64encode(bts).decode()
         return auth
 
-    def callback(self, a_number: str, b_number: str) -> str:
-        return self.call('/v1/request/callback/', { 'from': a_number, 'to': b_number })
+    async def callback(self, a_number: str, b_number: str) -> dict:
+        return await self.call('/v1/request/callback/', {'from': a_number, 'to': b_number})
 
-    def set_redirect(self, sip: str, to_number: str) -> str:
-        return self.call('/v1/pbx/redirection/', {
+    async def set_redirect(self, sip: str, to_number: str) -> dict:
+        logger.info({'pbx_number': sip, 'destination': to_number})
+        return await self.call('/v1/pbx/redirection/', {
             'pbx_number': sip,
             'status': 'on',
             'type': 'phone',
@@ -87,12 +102,18 @@ class ZadarmaAPI(object):
         }, 'POST')
 
     async def get_record(self, call_id: str, dir_path: str) -> str:
-        result = self.call('/v1/pbx/record/request/', { 'call_id': call_id })
+        result = await self.call('/v1/pbx/record/request/', { 'call_id': call_id })
         link = result.get('link')
         if not link:
             return ''
         filename = os.path.join(dir_path, os.path.basename(link))
-        response = requests.get(link)
+
         async with aiofiles.open(filename, 'wb') as fd:
-            await fd.write(response.content)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(link) as response:
+                    while True:
+                        chunk = await response.content.read(1024)
+                        if not chunk:
+                            break
+                        await fd.write(chunk)
         return filename
