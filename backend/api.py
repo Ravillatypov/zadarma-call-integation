@@ -18,7 +18,8 @@ async def notify(request):
         logger.info(request.form)
         current_app = request.app
         event = normalize_dict(request.form)
-        if event['event'] == 'NOTIFY_OUT_END':
+        logger.info(event)
+        if event.get('event', '') == 'NOTIFY_OUT_END':
             current_app.add_task(event_process(event))
     return HTTPResponse('ok')
 
