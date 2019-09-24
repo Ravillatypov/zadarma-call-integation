@@ -31,7 +31,6 @@ class ZadarmaAPI(object):
         if is_sandbox:
             self.__url_api = 'https://api-sandbox.zadarma.com'
         self.pbx_id = None
-        self.conn = aiohttp.TCPConnector(ttl_dns_cache=3600, limit=10)
 
     async def call(self,
                    method: str,
@@ -58,23 +57,24 @@ class ZadarmaAPI(object):
 
         request_url = self.__url_api + method
         data = json.dumps(params)
+        logger.info({'method': method, 'type': request_type, 'data': data, 'auth': auth_str})
         result = {}
         if request_type == 'GET':
             sorted_dict_params = OrderedDict(sorted(params.items()))
             params_string = urlencode(sorted_dict_params)
             request_url += '?' + params_string
-            async with aiohttp.ClientSession(connector=self.conn, headers={ 'Authorization': auth_str }) as session:
+            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
                 async with session.get(request_url) as response:
                     result = await response.json()
         elif request_type == 'POST':
-            async with aiohttp.ClientSession(connector=self.conn, headers={ 'Authorization': auth_str }) as session:
+            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
                 async with session.post(request_url, data=data) as response:
                     result = await response.json()
         elif request_type == 'PUT':
-            async with aiohttp.ClientSession(connector=self.conn, headers={ 'Authorization': auth_str }) as session:
+            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
                 async with session.put(request_url, data=data) as response:
                     result = await response.json()
-        logger.info({ 'result': result, 'method': method, 'type': request_type, 'data': data })
+        logger.info(result)
         return result
 
     def __get_auth_string_for_header(self, method: str, params: dict) -> str:
