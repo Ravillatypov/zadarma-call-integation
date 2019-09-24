@@ -1,47 +1,13 @@
 import os
 from asyncio import sleep
 from datetime import date, datetime, timedelta
-from typing import Iterable
-from collections import defaultdict
+
 from settings import Config
 from zadarma import ZadarmaAPI
 from functools import lru_cache
 from dataclasses import dataclass
 from models import CallRecords
 from sanic.log import logger
-
-
-class SIPNumbers:
-    def __init__(self, numbers: Iterable[str], max_channels=3):
-        self._dict = defaultdict(int)
-        self._lockers = defaultdict(bool)
-        if max_channels < 1:
-            raise ValueError('max_channels must be positive')
-        self.max_channels = max_channels
-        for key in numbers:
-            self._dict[key] = max_channels
-
-    async def get_sip_number(self):
-        result = None
-        while not result:
-            for k, v in self._dict.items():
-                if v:
-                    self._dict[k] -= 1
-                    result = k
-            await sleep(5)
-        return result
-
-    async def get_lock(self, number: str):
-        while self._lockers[number]:
-            await sleep(1)
-        self._lockers[number] = True
-
-    def release_lock(self, number: str):
-        self._lockers[number] = False
-
-    def release_number(self, number: str):
-        if self._dict[number] < self.max_channels:
-            self._dict[number] += 1
 
 
 @dataclass
@@ -52,7 +18,6 @@ class CallInfo:
     internal_id: int = 0
 
 
-available_sip_numbers = SIPNumbers(Config.SIP_NUMBERS)
 zd_client = ZadarmaAPI(Config.ZADARMA_KEY, Config.ZADARMA_SECRET, Config.DEBUG)
 calls = []
 
@@ -66,14 +31,19 @@ def get_download_path(today: str) -> str:
 
 
 async def run_call(data: dict):
+    if not zd_client.pbx_id:
+        await zd_client.get_internal_numbers()
     a_number = normalize_number(data['first_number'])
     b_number = normalize_number(data['second_number'])
     internal_id = int(data['slave_id'])
-    sip_number = await available_sip_numbers.get_sip_number()
-    await available_sip_numbers.get_lock(sip_number)
-    await zd_client.set_redirect(sip_number, a_number)
-    await zd_client.callback(sip_number, b_number)
-    available_sip_numbers.release_lock(sip_number)
+    sip_number = await zd_client.get_sip_number()
+    await zd_client.get_lock(sip_number)
+    status = await zd_client.set_redirect(sip_number, a_number)
+    if status['status'] == 'success':
+        await zd_client.callback(sip_number, b_number)
+    else:
+        await zd_client.call('/v1/request/callback/', {'from': a_number, 'to': b_number, 'sip': sip_number})
+    zd_client.release_lock(sip_number)
     calls.append(CallInfo(a_number, b_number,  sip_number, internal_id))
     return
 
@@ -93,7 +63,7 @@ async def event_process(event: dict):
     dst_number = event['destination']
     if len(sip_number) > len(dst_number):
         sip_number, dst_number = dst_number, sip_number
-    available_sip_numbers.release_number(sip_number)
+    zd_client.release_number(sip_number)
     audio_file, a_number, internal_id = '', '', 0
     audio_file = await record_download(event['call_id_with_rec'])
     if audio_file:
