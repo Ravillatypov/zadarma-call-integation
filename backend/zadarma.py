@@ -1,6 +1,5 @@
 import base64
 import hmac
-import json
 import os
 from asyncio import sleep
 from collections import OrderedDict, defaultdict
@@ -56,8 +55,7 @@ class ZadarmaAPI(object):
             auth_str = self.__get_auth_string_for_header(method, params)
 
         request_url = self.__url_api + method
-        data = json.dumps(params)
-        logger.info({'method': method, 'type': request_type, 'data': data, 'auth': auth_str})
+        logger.info({'method': method, 'type': request_type, 'data': params, 'auth': auth_str})
         result = {}
         if request_type == 'GET':
             sorted_dict_params = OrderedDict(sorted(params.items()))
@@ -68,11 +66,11 @@ class ZadarmaAPI(object):
                     result = await response.json()
         elif request_type == 'POST':
             async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
-                async with session.post(request_url, data=data) as response:
+                async with session.post(request_url, data=params) as response:
                     result = await response.json()
         elif request_type == 'PUT':
             async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
-                async with session.put(request_url, data=data) as response:
+                async with session.put(request_url, data=params) as response:
                     result = await response.json()
         logger.info(result)
         return result
