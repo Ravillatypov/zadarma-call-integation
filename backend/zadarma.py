@@ -111,7 +111,7 @@ class ZadarmaAPI(object):
         filename = os.path.join(dir_path, os.path.basename(link))
 
         async with aiofiles.open(filename, 'wb') as fd:
-            async with aiohttp.ClientSession(connector=self.conn) as session:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(link) as response:
                     while True:
                         chunk = await response.content.read(1024)
