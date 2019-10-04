@@ -7,7 +7,9 @@ class Config:
     STATIC_PATH: str = ''
     ZADARMA_KEY: str = ''
     ZADARMA_SECRET: str = ''
+    ZADARMA_CHANNELS: int = 1
     SIP_NUMBERS: Iterable[str] = []
     DEBUG: bool = True
     DB_URL: str = 'mysql://myuser:mypass@localhost:3306/somedb'
     DB_INIT: bool = True
+    SENTRY_DSN: str = ''

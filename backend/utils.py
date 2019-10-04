@@ -18,7 +18,7 @@ class CallInfo:
     internal_id: int = 0
 
 
-zd_client = ZadarmaAPI(Config.ZADARMA_KEY, Config.ZADARMA_SECRET, Config.DEBUG, max_channels=3)
+zd_client = ZadarmaAPI(Config.ZADARMA_KEY, Config.ZADARMA_SECRET, Config.DEBUG, max_channels=Config.ZADARMA_CHANNELS)
 calls = []
 
 

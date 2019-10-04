@@ -7,3 +7,5 @@ async-timeout==3.0.1
 cchardet==2.1.4
 aiomysql==0.0.20
 tortoise-orm==0.13.0
+sentry-sdk==0.12.3
+aiocontextvars==0.2.2
