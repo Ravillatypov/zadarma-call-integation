@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 import aiofiles
 import aiohttp
 from sanic.log import logger
+from settings import Config
 
 
 class ZadarmaAPI(object):
@@ -50,45 +51,44 @@ class ZadarmaAPI(object):
         if request_type not in ('GET', 'POST', 'PUT', 'DELETE'):
             request_type = 'GET'
         params['format'] = format
-        auth_str = None
-        if is_auth:
-            auth_str = self.__get_auth_string_for_header(method, params)
 
+        params = OrderedDict(sorted(params.items()))
         request_url = self.__url_api + method
-        logger.info({'method': method, 'type': request_type, 'data': params, 'auth': auth_str})
+        logger.info({'method': method, 'type': request_type, 'data': params})
         result = {}
-        if request_type == 'GET':
-            sorted_dict_params = OrderedDict(sorted(params.items()))
-            params_string = urlencode(sorted_dict_params)
-            request_url += '?' + params_string
-            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
-                async with session.get(request_url) as response:
-                    result = await response.json()
-        elif request_type == 'POST':
-            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
-                async with session.post(request_url, data=params) as response:
-                    result = await response.json()
-        elif request_type == 'PUT':
-            async with aiohttp.ClientSession(headers={ 'Authorization': auth_str }) as session:
-                async with session.put(request_url, data=params) as response:
-                    result = await response.json()
+        async with aiohttp.ClientSession(
+                headers=self.__get_headers(method, params),
+                ssl=Config.ZADARMA_CHECK_SSL,
+                timeout=3
+        ) as session:
+            result = await self._do_request(session, request_type, request_url, params)
         logger.info(result)
         return result
 
-    def __get_auth_string_for_header(self, method: str, params: dict) -> str:
+    @staticmethod
+    async def _do_request(session, request_type: str, url: str, data: dict) -> dict:
+        if request_type.lower() == 'get':
+            request_params = {'params': data}
+        else:
+            request_params = {'data': data}
+
+        session_method = getattr(session, request_type.lower())
+        async with session_method(url, **request_params) as response:
+            return await response.json()
+
+    def __get_headers(self, method: str, params: dict) -> dict:
         """
         :param method: API method, including version number
         :param params: Query params dict
         :return: auth header
         """
-        sorted_dict_params = OrderedDict(sorted(params.items()))
-        params_string = urlencode(sorted_dict_params)
+        params_string = urlencode(params)
         md5hash = md5(params_string.encode('utf8')).hexdigest()
         data = method + params_string + md5hash
         hmac_h = hmac.new(self.secret.encode('utf8'), data.encode('utf8'), sha1)
         bts = bytes(hmac_h.hexdigest(), 'utf8')
         auth = self.key + ':' + base64.b64encode(bts).decode()
-        return auth
+        return {'Authorization': auth}
 
     async def callback(self, a_number: str, b_number: str) -> dict:
         return await self.call('/v1/request/callback/', {'from': a_number, 'to': b_number})

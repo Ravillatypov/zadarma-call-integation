@@ -8,6 +8,7 @@ class Config:
     ZADARMA_KEY: str = ''
     ZADARMA_SECRET: str = ''
     ZADARMA_CHANNELS: int = 1
+    ZADARMA_CHECK_SSL: bool = True
     SIP_NUMBERS: Iterable[str] = []
     DEBUG: bool = True
     DB_URL: str = 'mysql://myuser:mypass@localhost:3306/somedb'
