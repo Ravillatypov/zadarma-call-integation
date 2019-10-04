@@ -56,11 +56,7 @@ class ZadarmaAPI(object):
         request_url = self.__url_api + method
         logger.info({'method': method, 'type': request_type, 'data': params})
         result = {}
-        async with aiohttp.ClientSession(
-                headers=self.__get_headers(method, params),
-                ssl=Config.ZADARMA_CHECK_SSL,
-                timeout=3
-        ) as session:
+        async with aiohttp.ClientSession(headers=self.__get_headers(method, params)) as session:
             result = await self._do_request(session, request_type, request_url, params)
         logger.info(result)
         return result
@@ -73,7 +69,7 @@ class ZadarmaAPI(object):
             request_params = {'data': data}
 
         session_method = getattr(session, request_type.lower())
-        async with session_method(url, **request_params) as response:
+        async with session_method(url, ssl=Config.ZADARMA_CHECK_SSL, timeout=3, **request_params) as response:
             return await response.json()
 
     def __get_headers(self, method: str, params: dict) -> dict:

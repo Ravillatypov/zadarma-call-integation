@@ -1,7 +1,9 @@
 import sentry_sdk
+import logging
 from sanic import Sanic
 from sanic.response import json
 from sentry_sdk.integrations.sanic import SanicIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 from tortoise.contrib.sanic import register_tortoise
 
 from api import bp
@@ -10,7 +12,13 @@ from settings import Config
 if Config.SENTRY_DSN:
     sentry_sdk.init(
         dsn=Config.SENTRY_DSN,
-        integrations=[SanicIntegration()]
+        integrations=[
+            SanicIntegration(),
+            LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.WARNING
+            )
+        ]
     )
 
 app = Sanic()
