@@ -1,9 +1,9 @@
 import base64
 import hmac
 import os
-from asyncio import sleep
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from hashlib import sha1, md5
+from queue import deque
 from urllib.parse import urlencode
 
 import aiofiles
@@ -14,7 +14,7 @@ from settings import Config
 
 class ZadarmaAPI(object):
 
-    def __init__(self, key, secret, is_sandbox=False, max_channels: int = 1):
+    def __init__(self, key, secret, is_sandbox=False):
         """
         Constructor
         :param key: key from personal
@@ -24,9 +24,7 @@ class ZadarmaAPI(object):
         self.key = key
         self.secret = secret
         self.is_sandbox = is_sandbox
-        self.max_channels = max_channels
-        self._dict = defaultdict(int)
-        self._lockers = defaultdict(bool)
+        self._numbers = deque()
         self.__url_api = 'https://api.zadarma.com'
         if is_sandbox:
             self.__url_api = 'https://api-sandbox.zadarma.com'
@@ -127,29 +125,9 @@ class ZadarmaAPI(object):
                 'pbx_number': f'{self.pbx_id}-{number}',
                 'status': 'off',
             }, 'POST')
-            self._dict[number] = self.max_channels
+        self._numbers = deque(result['numbers'])
 
-    async def get_sip_number(self):
-        result = None
-        while not result:
-            for k, v in self._dict.items():
-                if v:
-                    self._dict[k] -= 1
-                    result = k
-            await sleep(5)
-        logger.info({ 'sip_number': result, 'numbers_dict': self._dict })
-        return result
-
-    async def get_lock(self, number: str):
-        while self._lockers[number]:
-            await sleep(1)
-        self._lockers[number] = True
-        logger.info(f'locked sip number {number}')
-
-    def release_lock(self, number: str):
-        self._lockers[number] = False
-        logger.info(f'released sip number {number}')
-
-    def release_number(self, number: str):
-        if self._dict[number] < self.max_channels:
-            self._dict[number] += 1
+    def get_sip_number(self):
+        sip = self._numbers.pop()
+        self._numbers.appendleft(sip)
+        return sip

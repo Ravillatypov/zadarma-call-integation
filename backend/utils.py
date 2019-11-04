@@ -18,7 +18,7 @@ class CallInfo:
     internal_id: int = 0
 
 
-zd_client = ZadarmaAPI(Config.ZADARMA_KEY, Config.ZADARMA_SECRET, Config.DEBUG, max_channels=Config.ZADARMA_CHANNELS)
+zd_client = ZadarmaAPI(Config.ZADARMA_KEY, Config.ZADARMA_SECRET, Config.DEBUG)
 calls = []
 
 
@@ -36,16 +36,13 @@ async def run_call(data: dict):
     a_number = normalize_number(data['first_number'])
     b_number = normalize_number(data['second_number'])
     internal_id = int(data['slave_id'])
-    sip_number = await zd_client.get_sip_number()
-    await zd_client.get_lock(sip_number)
+    sip_number = zd_client.get_sip_number()
     status = await zd_client.set_redirect(sip_number, a_number)
     if status['status'] == 'success':
         await zd_client.callback(sip_number, b_number)
     else:
         await zd_client.call('/v1/request/callback/', {'from': a_number, 'to': b_number, 'sip': sip_number})
-    zd_client.release_lock(sip_number)
     calls.append(CallInfo(a_number, b_number,  sip_number, internal_id))
-    return
 
 
 async def record_download(call_id: str):
@@ -63,7 +60,6 @@ async def event_process(event: dict):
     dst_number = event['destination']
     if len(sip_number) > len(dst_number):
         sip_number, dst_number = dst_number, sip_number
-    zd_client.release_number(sip_number)
     audio_file, a_number, internal_id = '', '', 0
     audio_file = await record_download(event['call_id_with_rec'])
     if audio_file:
