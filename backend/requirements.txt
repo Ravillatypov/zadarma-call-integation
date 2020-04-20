@@ -6,4 +6,4 @@ aiohttp==3.5.4
 async-timeout==3.0.1
 cchardet==2.1.4
 aiomysql==0.0.20
-tortoise-orm==0.13.0
+tortoise-orm==0.15.23
